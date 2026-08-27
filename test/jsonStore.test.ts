@@ -53,4 +53,12 @@ describe("jsonStore", () => {
     expect(out).toEqual({ n: 1 });
     expect(await s.read()).toEqual({ n: 1 });
   });
+
+  it("update 中 fn 抛错传给调用方且不卡死后续 update", async () => {
+    const s = createJsonStore(join(dir, "u3.json"), { n: 0 });
+    const p1 = s.update(() => { throw new Error("boom"); });
+    const p2 = s.update((v) => ({ n: v.n + 1 }));
+    await expect(p1).rejects.toThrow("boom");
+    await expect(p2).resolves.toEqual({ n: 1 });
+  });
 });
