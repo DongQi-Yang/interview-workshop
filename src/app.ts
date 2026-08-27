@@ -6,6 +6,7 @@ import { ProviderError } from "./ai/provider.js";
 import type { Store } from "./store/jsonStore.js";
 import type { AppRecord } from "./services/records.js";
 import { polishResume } from "./services/resumeService.js";
+import { generatePlan } from "./services/planService.js";
 
 export interface AppDeps {
   registry: ProviderRegistry;
@@ -79,6 +80,33 @@ export function createApp(deps: AppDeps) {
         type: "polish",
         createdAt: new Date().toISOString(),
         input: { resumeText: parsed.data.resumeText },
+        result,
+      });
+      await deps.recordsStore.write(records);
+      res.json({ ok: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  const PlanBody = z.object({
+    resumeText: z.string().min(1, "简历不能为空").max(50_000),
+    jobDescription: z.string().min(1, "JD 不能为空").max(50_000),
+  });
+
+  app.post("/api/v1/interview-plan", async (req, res, next) => {
+    try {
+      const parsed = PlanBody.safeParse(req.body);
+      if (!parsed.success) {
+        throw new ValidationError(parsed.error.issues[0].message);
+      }
+      const result = await generatePlan(deps.registry, parsed.data);
+      const records = await deps.recordsStore.read();
+      records.unshift({
+        id: randomUUID(),
+        type: "plan",
+        createdAt: new Date().toISOString(),
+        input: parsed.data,
         result,
       });
       await deps.recordsStore.write(records);
