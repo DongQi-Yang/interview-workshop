@@ -144,7 +144,7 @@ export function createApp(deps: AppDeps) {
         );
       }
       const plan = buildPracticePlan(source);
-      await deps.practiceStore.write(plan);
+      await deps.practiceStore.update(() => plan);
       res.json({ ok: true, data: plan });
     } catch (err) {
       next(err);
