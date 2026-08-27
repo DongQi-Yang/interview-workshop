@@ -98,7 +98,7 @@ ProviderRegistry.complete(req)
 
 - **为什么原子写（临时文件 + rename）**：`jsonStore.ts` 写入时先写到同目录下的 `.{uuid}.tmp`，成功后用 `rename` 原子替换目标文件。`rename` 在同一文件系统下是原子操作，进程在写入中途被杀掉或断电，磁盘上永远只存在「写入前的旧文件」或「写入后的新文件」两种状态之一，不会出现半截 JSON（对应铁律 3：极强稳定性，重启零数据丢失）。读取时若解析失败（历史遗留损坏文件），自动改名备份并回退默认值，而不是让整个进程崩溃。
 
-- **为什么 `Store.update(fn)` 要按实例串行化**：`recordsStore`（润色/方案两条路由都会 `unshift` 写入历史）与 `practiceStore`（打卡勾选）都可能被并发请求同时读改写——先 `read()` 再 `write()` 拆成两步会出现「后写覆盖先写」的丢更新竞态。`jsonStore.ts` 内部维护一条模块级 `chain: Promise<unknown>`，每次调用 `update` 把自身接到链尾，保证同一 store 实例上的多次 `update` 严格排队执行；不同 store 实例（`recordsStore` 与 `practiceStore`）之间互不阻塞，仍然并发（对应铁律 3 稳定性 + 铁律 4 并发：排队但不阻塞事件循环）。`fn` 本身抛错只会 reject 调用方拿到的那个 `update()` promise，不会卡死链上后续排队的 `update`（`test/jsonStore.test.ts` 有专门的锁定测试）。
+- **为什么 `Store.update(fn)` 要按实例串行化**：`recordsStore`（润色/方案两条路由都会 `unshift` 写入历史）与 `practiceStore`（打卡勾选）都可能被并发请求同时读改写——先 `read()` 再 `write()` 拆成两步会出现「后写覆盖先写」的丢更新竞态。每个 `createJsonStore` 实例在闭包内维护一条独立的 `chain: Promise<unknown>`，每次调用 `update` 把自身接到该实例的链尾，保证同一 store 实例上的多次 `update` 严格排队执行；不同 store 实例（`recordsStore` 与 `practiceStore`）各有各的 `chain`，互不阻塞，仍然并发（对应铁律 3 稳定性 + 铁律 4 并发：排队但不阻塞事件循环）。`fn` 本身抛错只会 reject 调用方拿到的那个 `update()` promise，不会卡死链上后续排队的 `update`（`test/jsonStore.test.ts` 有专门的锁定测试）。
 
 - **为什么 zod 双向校验**：入向（HTTP body）用 `PolishBody`/`PlanBody` 校验长度与必填，拦在路由层，失败统一映射为 `400 ValidationError`——这是用户输入的问题，不该算成 AI 故障；出向（LLM 返回的裸文本）用 `PolishResultSchema`/`InterviewPlanSchema` 校验结构，因为大模型输出格式不受我们控制，校验失败时 `completeJson` 会把错误信息回填进下一轮 prompt 自动重试一次，仍失败才抛 `ProviderError`（对应铁律 5：鲁棒性——外部输入无论来自用户还是模型，都不被信任）。
 
