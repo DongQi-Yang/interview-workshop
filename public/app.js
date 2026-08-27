@@ -16,17 +16,33 @@ function metaLine(data) {
 }
 
 async function loadProviders() {
-  const data = await api("/api/v1/settings/providers");
-  const sel = $("#provider");
-  sel.innerHTML = data.providers
-    .map(
-      (p) =>
-        `<option value="${p.id}" ${p.id === data.active ? "selected" : ""} ${p.available ? "" : "disabled"}>
-          ${p.name}${p.available ? "" : "（不可用）"}</option>`,
-    )
-    .join("");
-  sel.onchange = () =>
-    api("/api/v1/settings/provider", { method: "PUT", body: JSON.stringify({ id: sel.value }) });
+  try {
+    const data = await api("/api/v1/settings/providers");
+    const sel = $("#provider");
+    sel.innerHTML = data.providers
+      .map(
+        (p) => {
+          const reasonText = p.available ? "" : `（不可用：${p.reason ?? "未知原因"}）`;
+          return `<option value="${p.id}" ${p.id === data.active ? "selected" : ""} ${p.available ? "" : "disabled"}>
+            ${p.name}${reasonText}</option>`;
+        },
+      )
+      .join("");
+
+    const prevValue = sel.value;
+    sel.onchange = async () => {
+      try {
+        await api("/api/v1/settings/provider", { method: "PUT", body: JSON.stringify({ id: sel.value }) });
+        $("#providerError").textContent = "";
+      } catch (err) {
+        sel.value = prevValue;
+        $("#providerError").textContent = `切换引擎失败：${err.message}`;
+      }
+    };
+    $("#providerError").textContent = "";
+  } catch (err) {
+    $("#providerError").textContent = `加载引擎列表失败：${err.message}`;
+  }
 }
 
 document.querySelectorAll("nav button").forEach((btn) => {
@@ -34,7 +50,11 @@ document.querySelectorAll("nav button").forEach((btn) => {
     document.querySelectorAll("nav button, .tab").forEach((el) => el.classList.remove("active"));
     btn.classList.add("active");
     $(`#tab-${btn.dataset.tab}`).classList.add("active");
-    if (btn.dataset.tab === "records") loadRecords();
+    if (btn.dataset.tab === "records") {
+      loadRecords().catch((err) => {
+        $("#recordsList").innerHTML = `<p class="error">加载记录失败：${err.message}</p>`;
+      });
+    }
   };
 });
 
@@ -108,4 +128,6 @@ async function loadRecords() {
           .join("");
 }
 
-loadProviders().catch((err) => console.error(err));
+loadProviders().catch((err) => {
+  $("#providerError").textContent = `初始化失败：${err.message}`;
+});

@@ -11,4 +11,10 @@ describe("前端静态页", () => {
     expect(res.text).toContain("面试方案");
     expect(res.text).toContain("历史记录");
   });
+
+  it("app.js 包含错误处理 UI providerError", async () => {
+    const res = await request(createApp(await makeTestDeps())).get("/app.js");
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("providerError");
+  });
 });
