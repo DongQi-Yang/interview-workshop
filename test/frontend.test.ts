@@ -29,4 +29,13 @@ describe("前端静态页", () => {
     expect(res.text).toContain("esc(s.severity)");
     expect(res.text).toContain("disabled = true");
   });
+
+  it("页面含练习打卡入口且 app.js 接入打卡 API", async () => {
+    const app = createApp(await makeTestDeps());
+    const page = await request(app).get("/index.html");
+    expect(page.text).toContain("练习打卡");
+    const js = await request(app).get("/app.js");
+    expect(js.text).toContain("/api/v1/practice-plan");
+    expect(js.text).toContain("loadPractice");
+  });
 });

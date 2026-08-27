@@ -63,6 +63,11 @@ document.querySelectorAll("nav button").forEach((btn) => {
         $("#recordsList").innerHTML = `<p class="error">加载记录失败：${esc(err.message)}</p>`;
       });
     }
+    if (btn.dataset.tab === "practice") {
+      loadPractice().catch((err) => {
+        $("#practiceView").innerHTML = `<p class="error">${esc(err.message)}</p>`;
+      });
+    }
   };
 });
 
@@ -142,6 +147,68 @@ async function loadRecords() {
                <pre>${esc(JSON.stringify(r.result, null, 2))}</pre></details>`,
           )
           .join("");
+}
+
+async function loadPractice() {
+  const view = $("#practiceView");
+  const plan = await api("/api/v1/practice-plan");
+  if (!plan) {
+    view.innerHTML =
+      '<p>还没有打卡计划。先在「面试方案」生成方案，然后回来一键生成。</p>' +
+      '<button id="genPractice">从最近的面试方案生成打卡计划</button>' +
+      '<p class="error" id="practiceError"></p>';
+    $("#genPractice").onclick = async () => {
+      const btn = $("#genPractice");
+      btn.disabled = true;
+      try {
+        await api("/api/v1/practice-plan", { method: "POST", body: "{}" });
+        await loadPractice();
+      } catch (err) {
+        $("#practiceError").textContent = err.message;
+        btn.disabled = false;
+      }
+    };
+    return;
+  }
+  const doneCount = plan.tasks.filter((t) => t.done).length;
+  view.innerHTML =
+    `<p class="meta">进度：${doneCount} / ${plan.tasks.length}</p>` +
+    '<ul class="practice">' +
+    plan.tasks
+      .map(
+        (t, i) =>
+          `<li><label><input type="checkbox" data-index="${i}" ${t.done ? "checked" : ""}> ` +
+          `<b>D${esc(t.day)}</b> ${esc(t.task)}${t.done ? `<small>（${esc(new Date(t.completedAt).toLocaleString("zh-CN"))} 完成）</small>` : ""}</label></li>`,
+      )
+      .join("") +
+    '</ul><button id="regenPractice">重新生成（覆盖当前进度）</button><p class="error" id="practiceError"></p>';
+  view.querySelectorAll("input[type=checkbox]").forEach((box) => {
+    box.onchange = async () => {
+      box.disabled = true;
+      try {
+        await api(`/api/v1/practice-plan/tasks/${box.dataset.index}`, {
+          method: "PUT",
+          body: JSON.stringify({ done: box.checked }),
+        });
+        await loadPractice();
+      } catch (err) {
+        box.checked = !box.checked;
+        box.disabled = false;
+        $("#practiceError").textContent = err.message;
+      }
+    };
+  });
+  $("#regenPractice").onclick = async () => {
+    const btn = $("#regenPractice");
+    btn.disabled = true;
+    try {
+      await api("/api/v1/practice-plan", { method: "POST", body: "{}" });
+      await loadPractice();
+    } catch (err) {
+      $("#practiceError").textContent = err.message;
+      btn.disabled = false;
+    }
+  };
 }
 
 loadProviders().catch((err) => {

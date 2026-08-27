@@ -12,3 +12,6 @@ pre { white-space: pre-wrap; background: #f5f6f8; padding: 12px; border-radius: 
 .sev-high { color: #b3261e; } .sev-medium { color: #96650c; } .sev-low { color: #5c6674; }
 .meta { color: #5c6674; font-size: 13px; }
 .error { color: #b3261e; }
+ul.practice { list-style: none; padding: 0; }
+ul.practice li { padding: 6px 0; border-bottom: 1px solid #e0e0e6; }
+ul.practice small { color: #5c6674; margin-left: 8px; }
