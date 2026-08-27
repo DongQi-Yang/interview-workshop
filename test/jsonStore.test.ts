@@ -34,4 +34,23 @@ describe("jsonStore", () => {
     const names = await readdir(dir);
     expect(names.filter((f) => f.endsWith(".tmp"))).toEqual([]);
   });
+
+  it("update 串行化：两次并发 update 全部生效", async () => {
+    const s = createJsonStore<{ list: number[] }>(join(dir, "u.json"), { list: [] });
+    await Promise.all([
+      s.update(async (v) => {
+        await new Promise((r) => setTimeout(r, 20));
+        return { list: [...v.list, 1] };
+      }),
+      s.update((v) => ({ list: [...v.list, 2] })),
+    ]);
+    expect((await s.read()).list.sort()).toEqual([1, 2]);
+  });
+
+  it("update 返回更新后的值", async () => {
+    const s = createJsonStore(join(dir, "u2.json"), { n: 0 });
+    const out = await s.update((v) => ({ n: v.n + 1 }));
+    expect(out).toEqual({ n: 1 });
+    expect(await s.read()).toEqual({ n: 1 });
+  });
 });

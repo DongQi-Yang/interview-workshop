@@ -1,11 +1,7 @@
 {
   "name": "interview-prep-app",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "面试工坊：本地简历润色与面试方案工具（端云双 AI 引擎）",
   "scripts": {
     "test": "vitest run",
     "dev": "tsx src/server.ts",

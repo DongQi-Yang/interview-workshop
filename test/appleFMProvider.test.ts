@@ -31,4 +31,12 @@ describe("AppleFMProvider", () => {
       p.complete({ system: "s", user: bigPayload }),
     ).rejects.toMatchObject({ name: "ProviderError", retryable: true });
   });
+
+  it("桥超时被击杀时错误信息注明超时", async () => {
+    const p = new AppleFMProvider("test/fixtures/slow-bridge.sh", { completeTimeoutMs: 200 });
+    await expect(p.complete({ system: "s", user: "u" })).rejects.toMatchObject({
+      name: "ProviderError",
+      message: expect.stringContaining("超时"),
+    });
+  }, 10_000);
 });

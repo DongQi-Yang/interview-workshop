@@ -5,10 +5,13 @@ import { randomUUID } from "node:crypto";
 export interface Store<T> {
   read(): Promise<T>;
   write(value: T): Promise<void>;
+  /** 串行化的读改写：同一 store 实例上的 update 依次执行，避免并发丢更新（铁律 3） */
+  update(fn: (value: T) => T | Promise<T>): Promise<T>;
 }
 
 export function createJsonStore<T>(filePath: string, defaultValue: T): Store<T> {
-  return {
+  let chain: Promise<unknown> = Promise.resolve();
+  const store: Store<T> = {
     async read(): Promise<T> {
       let raw: string;
       try {
@@ -35,5 +38,16 @@ export function createJsonStore<T>(filePath: string, defaultValue: T): Store<T> 
       await writeFile(tmp, JSON.stringify(value, null, 2), "utf8");
       await rename(tmp, filePath); // 原子替换：任何时刻磁盘上都是完整文件
     },
+    update(fn) {
+      const next = chain.then(async () => {
+        const value = await store.read();
+        const updated = await fn(value);
+        await store.write(updated);
+        return updated;
+      });
+      chain = next.catch(() => undefined); // 单次失败不能卡死后续 update
+      return next;
+    },
   };
+  return store;
 }

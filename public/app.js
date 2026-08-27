@@ -67,7 +67,9 @@ document.querySelectorAll("nav button").forEach((btn) => {
 });
 
 $("#polishBtn").onclick = async () => {
+  const btn = $("#polishBtn");
   const out = $("#polishResult");
+  btn.disabled = true;
   out.innerHTML = "<p>润色中…</p>";
   try {
     const data = await api("/api/v1/resume/polish", {
@@ -80,7 +82,7 @@ $("#polishBtn").onclick = async () => {
       data.suggestions
         .map(
           (s) =>
-            `<li class="sev-${s.severity}"><b>[${{ high: "硬伤", medium: "建议", low: "可选" }[s.severity]}]</b>
+            `<li class="sev-${esc(s.severity)}"><b>[${{ high: "硬伤", medium: "建议", low: "可选" }[s.severity] ?? esc(s.severity)}]</b>
              「${esc(s.original)}」→ ${esc(s.suggestion)}<br><small>${esc(s.reason)}</small></li>`,
         )
         .join("") +
@@ -88,11 +90,15 @@ $("#polishBtn").onclick = async () => {
     $("#copyBtn").onclick = () => navigator.clipboard.writeText(data.revised);
   } catch (err) {
     out.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  } finally {
+    btn.disabled = false;
   }
 };
 
 $("#planBtn").onclick = async () => {
+  const btn = $("#planBtn");
   const out = $("#planResult");
+  btn.disabled = true;
   out.innerHTML = "<p>生成中…</p>";
   try {
     const data = await api("/api/v1/interview-plan", {
@@ -119,6 +125,8 @@ $("#planBtn").onclick = async () => {
       "</ol>";
   } catch (err) {
     out.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  } finally {
+    btn.disabled = false;
   }
 };
 

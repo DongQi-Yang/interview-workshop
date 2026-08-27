@@ -23,4 +23,10 @@ describe("前端静态页", () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain("function esc(");
   });
+
+  it("app.js 转义 severity 且按钮有请求期禁用守卫", async () => {
+    const res = await request(createApp(await makeTestDeps())).get("/app.js");
+    expect(res.text).toContain("esc(s.severity)");
+    expect(res.text).toContain("disabled = true");
+  });
 });

@@ -51,4 +51,17 @@ describe("zod 默认英文文案兜底为中文", () => {
     expect(res.body.ok).toBe(false);
     expect(res.body.error.message).toMatch(/[一-龥]/);
   });
+
+  it("polish resumeText 超过 50000 字返回 400 中文报错", async () => {
+    const app = createApp(await makeTestDeps());
+    const res = await request(app).post("/api/v1/resume/polish").send({ resumeText: "x".repeat(50_001) });
+    expect(res.status).toBe(400);
+    expect(/[一-鿿]/.test(res.body.error.message)).toBe(true);
+  });
+  it("plan jobDescription 超过 50000 字返回 400 中文报错", async () => {
+    const app = createApp(await makeTestDeps());
+    const res = await request(app).post("/api/v1/interview-plan").send({ resumeText: "r", jobDescription: "x".repeat(50_001) });
+    expect(res.status).toBe(400);
+    expect(/[一-鿿]/.test(res.body.error.message)).toBe(true);
+  });
 });

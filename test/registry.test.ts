@@ -67,4 +67,8 @@ describe("ProviderRegistry", () => {
     const reg = await makeRegistry([stub("claude", { available: false }), stub("mock", {})]);
     await expect(reg.complete({ system: "s", user: "u" })).rejects.toBeInstanceOf(ProviderError);
   });
+
+  it("providers 为空数组时构造即抛 ProviderError", async () => {
+    await expect(makeRegistry([])).rejects.toBeInstanceOf(ProviderError);
+  });
 });

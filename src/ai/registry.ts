@@ -13,7 +13,9 @@ export class ProviderRegistry {
   constructor(
     private providers: AIProvider[],
     private configStore: Store<AppConfig>,
-  ) {}
+  ) {
+    if (providers.length === 0) throw new ProviderError("ProviderRegistry 至少需要一个 Provider");
+  }
 
   list(): AIProvider[] {
     return [...this.providers];
@@ -21,7 +23,12 @@ export class ProviderRegistry {
 
   async getActive(): Promise<AIProvider> {
     const cfg = await this.configStore.read();
-    return this.providers.find((p) => p.id === cfg.activeProvider) ?? this.providers[0];
+    const found = this.providers.find((p) => p.id === cfg.activeProvider);
+    if (!found) {
+      console.warn(`[ai] 配置的活跃 Provider "${cfg.activeProvider}" 不存在，回退到 ${this.providers[0].id}`);
+      return this.providers[0];
+    }
+    return found;
   }
 
   async setActive(id: string): Promise<void> {

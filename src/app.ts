@@ -79,15 +79,16 @@ export function createApp(deps: AppDeps) {
         throw new ValidationError(zhMessage(parsed.error.issues[0].message));
       }
       const result = await polishResume(deps.registry, parsed.data.resumeText);
-      const records = await deps.recordsStore.read();
-      records.unshift({
-        id: randomUUID(),
-        type: "polish",
-        createdAt: new Date().toISOString(),
-        input: { resumeText: parsed.data.resumeText },
-        result,
+      await deps.recordsStore.update((records) => {
+        records.unshift({
+          id: randomUUID(),
+          type: "polish",
+          createdAt: new Date().toISOString(),
+          input: { resumeText: parsed.data.resumeText },
+          result,
+        });
+        return records;
       });
-      await deps.recordsStore.write(records);
       res.json({ ok: true, data: result });
     } catch (err) {
       next(err);
@@ -106,15 +107,16 @@ export function createApp(deps: AppDeps) {
         throw new ValidationError(zhMessage(parsed.error.issues[0].message));
       }
       const result = await generatePlan(deps.registry, parsed.data);
-      const records = await deps.recordsStore.read();
-      records.unshift({
-        id: randomUUID(),
-        type: "plan",
-        createdAt: new Date().toISOString(),
-        input: parsed.data,
-        result,
+      await deps.recordsStore.update((records) => {
+        records.unshift({
+          id: randomUUID(),
+          type: "plan",
+          createdAt: new Date().toISOString(),
+          input: parsed.data,
+          result,
+        });
+        return records;
       });
-      await deps.recordsStore.write(records);
       res.json({ ok: true, data: result });
     } catch (err) {
       next(err);

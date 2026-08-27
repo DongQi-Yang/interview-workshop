@@ -6,11 +6,14 @@ export class AppleFMProvider implements AIProvider {
   readonly id = "apple";
   readonly name = "Apple 端侧（Foundation Models）";
 
-  constructor(private bridgePath = "bridge/bin/fm-bridge") {}
+  constructor(
+    private bridgePath = "bridge/bin/fm-bridge",
+    private opts: { checkTimeoutMs?: number; completeTimeoutMs?: number } = {},
+  ) {}
 
   async checkAvailability(): Promise<Availability> {
     try {
-      await this.run(["--check"], "", 10_000);
+      await this.run(["--check"], "", this.opts.checkTimeoutMs ?? 10_000);
       return { available: true };
     } catch (err) {
       return { available: false, reason: (err as Error).message };
@@ -19,7 +22,7 @@ export class AppleFMProvider implements AIProvider {
 
   async complete(req: CompletionRequest): Promise<string> {
     const input = JSON.stringify({ system: req.system, prompt: req.user });
-    return this.run([], input, 120_000);
+    return this.run([], input, this.opts.completeTimeoutMs ?? 120_000);
   }
 
   private run(args: string[], stdin: string, timeout: number): Promise<string> {
@@ -45,9 +48,11 @@ export class AppleFMProvider implements AIProvider {
       child.stdin.on("error", (err) =>
         settle(() => reject(new ProviderError(`端侧桥 stdin 写入失败: ${err.message}`, true))),
       );
-      child.on("close", (code) => {
+      child.on("close", (code, signal) => {
         settle(() => {
           if (code === 0) resolve(out.replace(/\n$/, ""));
+          else if (code === null)
+            reject(new ProviderError(`端侧桥执行超时被终止（signal ${signal ?? "unknown"}）`, true));
           else reject(new ProviderError(`端侧桥退出码 ${code}: ${errOut.trim()}`, true));
         });
       });
