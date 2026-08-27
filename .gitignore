@@ -6,4 +6,6 @@ bridge/bin/
 .env
 !test/
 !test/**
+!public/
+!public/**
 !package-lock.json

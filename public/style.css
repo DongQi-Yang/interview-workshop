@@ -1,0 +1,14 @@
+* { box-sizing: border-box; }
+body { margin: 0 auto; max-width: 860px; padding: 16px;
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif; line-height: 1.7; }
+header { display: flex; justify-content: space-between; align-items: baseline; }
+nav { display: flex; gap: 8px; border-bottom: 2px solid #e0e0e6; margin-bottom: 16px; }
+nav button { border: none; background: none; padding: 8px 14px; font-size: 15px; cursor: pointer; }
+nav button.active { border-bottom: 2px solid #2b4a8b; color: #2b4a8b; font-weight: 600; }
+.tab { display: none; } .tab.active { display: block; }
+textarea { width: 100%; min-height: 200px; padding: 10px; font: inherit; margin-bottom: 8px; }
+button { cursor: pointer; }
+pre { white-space: pre-wrap; background: #f5f6f8; padding: 12px; border-radius: 8px; }
+.sev-high { color: #b3261e; } .sev-medium { color: #96650c; } .sev-low { color: #5c6674; }
+.meta { color: #5c6674; font-size: 13px; }
+.error { color: #b3261e; }

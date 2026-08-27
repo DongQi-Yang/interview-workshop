@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>面试工坊</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>面试工坊</h1>
+    <label>AI 引擎
+      <select id="provider"></select>
+    </label>
+  </header>
+  <nav>
+    <button data-tab="polish" class="active">简历润色</button>
+    <button data-tab="plan">面试方案</button>
+    <button data-tab="records">历史记录</button>
+  </nav>
+  <main>
+    <section id="tab-polish" class="tab active">
+      <textarea id="resumeText" placeholder="粘贴你的简历全文…"></textarea>
+      <button id="polishBtn">开始润色</button>
+      <div id="polishResult"></div>
+    </section>
+    <section id="tab-plan" class="tab">
+      <textarea id="planResume" placeholder="粘贴简历全文…"></textarea>
+      <textarea id="planJD" placeholder="粘贴目标岗位 JD…"></textarea>
+      <button id="planBtn">生成面试方案</button>
+      <div id="planResult"></div>
+    </section>
+    <section id="tab-records" class="tab">
+      <div id="recordsList"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
