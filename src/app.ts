@@ -7,6 +7,14 @@ export interface AppDeps {
   dataDir: string;
 }
 
+// HTTP 边界的输入校验错误：客户端问题（400），区别于 ProviderError（上游 AI 故障，502）
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
 export function createApp(deps: AppDeps) {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
@@ -34,6 +42,13 @@ export function createApp(deps: AppDeps) {
   app.put("/api/v1/settings/provider", async (req, res, next) => {
     try {
       const id = typeof req.body?.id === "string" ? req.body.id : "";
+      if (!id) {
+        throw new ValidationError("id 不能为空");
+      }
+      if (!deps.registry.list().some((p) => p.id === id)) {
+        throw new ValidationError(`未知的 Provider: ${id}`);
+      }
+      // 校验通过后 setActive 理论上不会再抛 ProviderError（纵深防御，registry 契约不变）
       await deps.registry.setActive(id);
       res.json({ ok: true, data: { active: id } });
     } catch (err) {
