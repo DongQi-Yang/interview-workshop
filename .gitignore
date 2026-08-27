@@ -1,2 +1,9 @@
 !docs/
 !docs/**
+node_modules/
+data/
+bridge/bin/
+.env
+!test/
+!test/**
+!package-lock.json
