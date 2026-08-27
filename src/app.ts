@@ -7,19 +7,12 @@ import type { Store } from "./store/jsonStore.js";
 import type { AppRecord } from "./services/records.js";
 import { polishResume } from "./services/resumeService.js";
 import { generatePlan } from "./services/planService.js";
+import { ValidationError } from "./errors.js";
 
 export interface AppDeps {
   registry: ProviderRegistry;
   dataDir: string;
   recordsStore: Store<AppRecord[]>;
-}
-
-// HTTP 边界的输入校验错误：客户端问题（400），区别于 ProviderError（上游 AI 故障，502）
-class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ValidationError";
-  }
 }
 
 export function createApp(deps: AppDeps) {
