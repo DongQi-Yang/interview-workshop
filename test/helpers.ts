@@ -7,6 +7,7 @@ import { createJsonStore } from "../src/store/jsonStore.js";
 import { defaultConfig } from "../src/config.js";
 import type { AppDeps } from "../src/app.js";
 import type { CompletionRequest } from "../src/ai/provider.js";
+import type { AppRecord } from "../src/services/records.js";
 
 export async function makeTestDeps(
   handler: (req: CompletionRequest) => string = () => "{}",
@@ -17,5 +18,6 @@ export async function makeTestDeps(
     activeProvider: "mock",
   });
   const registry = new ProviderRegistry([new MockProvider(handler)], configStore);
-  return { registry, dataDir };
+  const recordsStore = createJsonStore<AppRecord[]>(join(dataDir, "records.json"), []);
+  return { registry, dataDir, recordsStore };
 }

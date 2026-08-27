@@ -1,10 +1,16 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import type { ProviderRegistry } from "./ai/registry.js";
 import { ProviderError } from "./ai/provider.js";
+import type { Store } from "./store/jsonStore.js";
+import type { AppRecord } from "./services/records.js";
+import { polishResume } from "./services/resumeService.js";
 
 export interface AppDeps {
   registry: ProviderRegistry;
   dataDir: string;
+  recordsStore: Store<AppRecord[]>;
 }
 
 // HTTP 边界的输入校验错误：客户端问题（400），区别于 ProviderError（上游 AI 故障，502）
@@ -51,6 +57,40 @@ export function createApp(deps: AppDeps) {
       // 校验通过后 setActive 理论上不会再抛 ProviderError（纵深防御，registry 契约不变）
       await deps.registry.setActive(id);
       res.json({ ok: true, data: { active: id } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  const PolishBody = z.object({
+    resumeText: z.string().min(1, "简历不能为空").max(50_000, "简历过长"),
+  });
+
+  app.post("/api/v1/resume/polish", async (req, res, next) => {
+    try {
+      const parsed = PolishBody.safeParse(req.body);
+      if (!parsed.success) {
+        throw new ValidationError(parsed.error.issues[0].message);
+      }
+      const result = await polishResume(deps.registry, parsed.data.resumeText);
+      const records = await deps.recordsStore.read();
+      records.unshift({
+        id: randomUUID(),
+        type: "polish",
+        createdAt: new Date().toISOString(),
+        input: { resumeText: parsed.data.resumeText },
+        result,
+      });
+      await deps.recordsStore.write(records);
+      res.json({ ok: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/v1/records", async (_req, res, next) => {
+    try {
+      res.json({ ok: true, data: await deps.recordsStore.read() });
     } catch (err) {
       next(err);
     }
