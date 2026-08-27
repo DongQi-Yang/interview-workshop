@@ -7,12 +7,15 @@ import type { Store } from "./store/jsonStore.js";
 import type { AppRecord } from "./services/records.js";
 import { polishResume } from "./services/resumeService.js";
 import { generatePlan } from "./services/planService.js";
+import { buildPracticePlan, toggleTask } from "./services/practiceService.js";
+import type { PracticePlan } from "./services/practiceService.js";
 import { ValidationError } from "./errors.js";
 
 export interface AppDeps {
   registry: ProviderRegistry;
   dataDir: string;
   recordsStore: Store<AppRecord[]>;
+  practiceStore: Store<PracticePlan | null>;
 }
 
 export function createApp(deps: AppDeps) {
@@ -119,6 +122,52 @@ export function createApp(deps: AppDeps) {
   app.get("/api/v1/records", async (_req, res, next) => {
     try {
       res.json({ ok: true, data: await deps.recordsStore.read() });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  const PracticeBody = z.object({ recordId: z.string().optional() });
+  const ToggleBody = z.object({ done: z.boolean({ message: "done 必须是布尔值" }) });
+
+  app.post("/api/v1/practice-plan", async (req, res, next) => {
+    try {
+      const parsed = PracticeBody.safeParse(req.body ?? {});
+      if (!parsed.success) throw new ValidationError(zhMessage(parsed.error.issues[0].message));
+      const records = await deps.recordsStore.read();
+      const source = parsed.data.recordId
+        ? records.find((r) => r.id === parsed.data.recordId)
+        : records.find((r) => r.type === "plan");
+      if (!source) {
+        throw new ValidationError(
+          parsed.data.recordId ? "找不到该记录" : "还没有生成过面试方案，请先在「面试方案」页生成",
+        );
+      }
+      const plan = buildPracticePlan(source);
+      await deps.practiceStore.write(plan);
+      res.json({ ok: true, data: plan });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/v1/practice-plan", async (_req, res, next) => {
+    try {
+      res.json({ ok: true, data: await deps.practiceStore.read() });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.put("/api/v1/practice-plan/tasks/:index", async (req, res, next) => {
+    try {
+      const parsed = ToggleBody.safeParse(req.body);
+      if (!parsed.success) throw new ValidationError(zhMessage(parsed.error.issues[0].message));
+      const updated = await deps.practiceStore.update((plan) => {
+        if (!plan) throw new ValidationError("还没有打卡计划");
+        return toggleTask(plan, Number(req.params.index), parsed.data.done);
+      });
+      res.json({ ok: true, data: updated });
     } catch (err) {
       next(err);
     }

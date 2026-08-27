@@ -8,6 +8,7 @@ import { defaultConfig } from "../src/config.js";
 import type { AppDeps } from "../src/app.js";
 import type { CompletionRequest } from "../src/ai/provider.js";
 import type { AppRecord } from "../src/services/records.js";
+import type { PracticePlan } from "../src/services/practiceService.js";
 
 export async function makeTestDeps(
   handler: (req: CompletionRequest) => string = () => "{}",
@@ -19,5 +20,6 @@ export async function makeTestDeps(
   });
   const registry = new ProviderRegistry([new MockProvider(handler)], configStore);
   const recordsStore = createJsonStore<AppRecord[]>(join(dataDir, "records.json"), []);
-  return { registry, dataDir, recordsStore };
+  const practiceStore = createJsonStore<PracticePlan | null>(join(dataDir, "practice.json"), null);
+  return { registry, dataDir, recordsStore, practiceStore };
 }
