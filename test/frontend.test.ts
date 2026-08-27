@@ -17,4 +17,10 @@ describe("前端静态页", () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain("providerError");
   });
+
+  it("app.js 包含 HTML 转义函数 esc（防止 innerHTML 注入）", async () => {
+    const res = await request(createApp(await makeTestDeps())).get("/app.js");
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("function esc(");
+  });
 });

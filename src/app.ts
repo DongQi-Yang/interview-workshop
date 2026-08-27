@@ -63,6 +63,11 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  // zod 默认英文文案（如字段缺失时的 "Invalid input: expected …"）兜底为中文，保证接口对客户端始终返回中文 message
+  function zhMessage(message: string): string {
+    return /^[\x00-\x7F]*$/.test(message) ? "请求参数不合法" : message;
+  }
+
   const PolishBody = z.object({
     resumeText: z.string().min(1, "简历不能为空").max(50_000, "简历过长"),
   });
@@ -71,7 +76,7 @@ export function createApp(deps: AppDeps) {
     try {
       const parsed = PolishBody.safeParse(req.body);
       if (!parsed.success) {
-        throw new ValidationError(parsed.error.issues[0].message);
+        throw new ValidationError(zhMessage(parsed.error.issues[0].message));
       }
       const result = await polishResume(deps.registry, parsed.data.resumeText);
       const records = await deps.recordsStore.read();
@@ -90,15 +95,15 @@ export function createApp(deps: AppDeps) {
   });
 
   const PlanBody = z.object({
-    resumeText: z.string().min(1, "简历不能为空").max(50_000),
-    jobDescription: z.string().min(1, "JD 不能为空").max(50_000),
+    resumeText: z.string().min(1, "简历不能为空").max(50_000, "简历过长"),
+    jobDescription: z.string().min(1, "JD 不能为空").max(50_000, "JD 过长"),
   });
 
   app.post("/api/v1/interview-plan", async (req, res, next) => {
     try {
       const parsed = PlanBody.safeParse(req.body);
       if (!parsed.success) {
-        throw new ValidationError(parsed.error.issues[0].message);
+        throw new ValidationError(zhMessage(parsed.error.issues[0].message));
       }
       const result = await generatePlan(deps.registry, parsed.data);
       const records = await deps.recordsStore.read();
@@ -125,8 +130,15 @@ export function createApp(deps: AppDeps) {
   });
 
   // 统一错误边界：业务错 4xx，其余 500，进程永不因单个请求崩溃（铁律 3/5）
+  // body-parser 等中间件层的错误（畸形 JSON / 超限 payload）自带数字 err.status（400~499），需原样透传，
+  // 否则一律折叠成 500 会掩盖客户端问题的真实性质。
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    const status = err instanceof ProviderError ? 502 : err.name === "ValidationError" ? 400 : 500;
+    const anyErr = err as { status?: unknown };
+    const clientStatus =
+      typeof anyErr.status === "number" && anyErr.status >= 400 && anyErr.status < 500
+        ? anyErr.status
+        : undefined;
+    const status = err instanceof ProviderError ? 502 : err.name === "ValidationError" ? 400 : clientStatus ?? 500;
     // 不吞栈：完整堆栈只落服务端日志（可观测边界），响应体只回传 code/message，避免向客户端泄漏内部细节
     console.error(`[error] status=${status} ${err.name}: ${err.message}`, err.stack);
     res.status(status).json({ ok: false, error: { code: err.name, message: err.message } });

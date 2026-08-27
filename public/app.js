@@ -1,5 +1,11 @@
 const $ = (s) => document.querySelector(s);
 
+// HTML 转义：所有插入 innerHTML 的不受信文本（用户输入 / LLM 输出）必须先转义，
+// 防止被当作 HTML 解析（内容被静默丢失）或注入（XSS）。
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
 async function api(path, options) {
   const res = await fetch(path, {
     headers: { "Content-Type": "application/json" },
@@ -22,18 +28,19 @@ async function loadProviders() {
     sel.innerHTML = data.providers
       .map(
         (p) => {
-          const reasonText = p.available ? "" : `（不可用：${p.reason ?? "未知原因"}）`;
-          return `<option value="${p.id}" ${p.id === data.active ? "selected" : ""} ${p.available ? "" : "disabled"}>
-            ${p.name}${reasonText}</option>`;
+          const reasonText = p.available ? "" : `（不可用：${esc(p.reason ?? "未知原因")}）`;
+          return `<option value="${esc(p.id)}" ${p.id === data.active ? "selected" : ""} ${p.available ? "" : "disabled"}>
+            ${esc(p.name)}${reasonText}</option>`;
         },
       )
       .join("");
 
-    const prevValue = sel.value;
+    let prevValue = sel.value;
     sel.onchange = async () => {
       try {
         await api("/api/v1/settings/provider", { method: "PUT", body: JSON.stringify({ id: sel.value }) });
         $("#providerError").textContent = "";
+        prevValue = sel.value;
       } catch (err) {
         sel.value = prevValue;
         $("#providerError").textContent = `切换引擎失败：${err.message}`;
@@ -44,6 +51,7 @@ async function loadProviders() {
     $("#providerError").textContent = `加载引擎列表失败：${err.message}`;
   }
 }
+// 注：#providerError 用 textContent 赋值（非 innerHTML），浏览器不解析其中的 HTML，天然安全，无需 esc。
 
 document.querySelectorAll("nav button").forEach((btn) => {
   btn.onclick = () => {
@@ -52,7 +60,7 @@ document.querySelectorAll("nav button").forEach((btn) => {
     $(`#tab-${btn.dataset.tab}`).classList.add("active");
     if (btn.dataset.tab === "records") {
       loadRecords().catch((err) => {
-        $("#recordsList").innerHTML = `<p class="error">加载记录失败：${err.message}</p>`;
+        $("#recordsList").innerHTML = `<p class="error">加载记录失败：${esc(err.message)}</p>`;
       });
     }
   };
@@ -73,13 +81,13 @@ $("#polishBtn").onclick = async () => {
         .map(
           (s) =>
             `<li class="sev-${s.severity}"><b>[${{ high: "硬伤", medium: "建议", low: "可选" }[s.severity]}]</b>
-             「${s.original}」→ ${s.suggestion}<br><small>${s.reason}</small></li>`,
+             「${esc(s.original)}」→ ${esc(s.suggestion)}<br><small>${esc(s.reason)}</small></li>`,
         )
         .join("") +
-      `</ul><h3>改写版全文 <button id="copyBtn">复制</button></h3><pre>${data.revised}</pre>`;
+      `</ul><h3>改写版全文 <button id="copyBtn">复制</button></h3><pre>${esc(data.revised)}</pre>`;
     $("#copyBtn").onclick = () => navigator.clipboard.writeText(data.revised);
   } catch (err) {
-    out.innerHTML = `<p class="error">${err.message}</p>`;
+    out.innerHTML = `<p class="error">${esc(err.message)}</p>`;
   }
 };
 
@@ -96,21 +104,21 @@ $("#planBtn").onclick = async () => {
     });
     out.innerHTML =
       metaLine(data) +
-      "<h3>备战重点</h3><ul>" + data.focusAreas.map((f) => `<li>${f}</li>`).join("") + "</ul>" +
+      "<h3>备战重点</h3><ul>" + data.focusAreas.map((f) => `<li>${esc(f)}</li>`).join("") + "</ul>" +
       "<h3>预测面试题</h3>" +
       data.questions
         .map(
           (q) =>
-            `<details><summary>[${q.category}] ${q.question}</summary><ul>` +
-            q.answerOutline.map((a) => `<li>${a}</li>`).join("") +
+            `<details><summary>[${esc(q.category)}] ${esc(q.question)}</summary><ul>` +
+            q.answerOutline.map((a) => `<li>${esc(a)}</li>`).join("") +
             "</ul></details>",
         )
         .join("") +
       "<h3>冲刺计划</h3><ol>" +
-      data.studyPlan.map((d) => `<li>D${d.day}：${d.task}</li>`).join("") +
+      data.studyPlan.map((d) => `<li>D${d.day}：${esc(d.task)}</li>`).join("") +
       "</ol>";
   } catch (err) {
-    out.innerHTML = `<p class="error">${err.message}</p>`;
+    out.innerHTML = `<p class="error">${esc(err.message)}</p>`;
   }
 };
 
@@ -123,7 +131,7 @@ async function loadRecords() {
           .map(
             (r) =>
               `<details><summary>${r.type === "polish" ? "简历润色" : "面试方案"} · ${new Date(r.createdAt).toLocaleString("zh-CN")}</summary>
-               <pre>${JSON.stringify(r.result, null, 2)}</pre></details>`,
+               <pre>${esc(JSON.stringify(r.result, null, 2))}</pre></details>`,
           )
           .join("");
 }
