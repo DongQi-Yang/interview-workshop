@@ -38,4 +38,9 @@ describe("前端静态页", () => {
     expect(js.text).toContain("/api/v1/practice-plan");
     expect(js.text).toContain("loadPractice");
   });
+
+  it("checkbox 勾选 PUT 成功但刷新失败时不回滚、只报错", async () => {
+    const res = await request(createApp(await makeTestDeps())).get("/app.js");
+    expect(res.text).toContain("已保存，但刷新失败");
+  });
 });

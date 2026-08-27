@@ -190,11 +190,17 @@ async function loadPractice() {
           method: "PUT",
           body: JSON.stringify({ done: box.checked }),
         });
-        await loadPractice();
       } catch (err) {
         box.checked = !box.checked;
         box.disabled = false;
         $("#practiceError").textContent = err.message;
+        return;
+      }
+      try {
+        await loadPractice();
+      } catch (err) {
+        box.disabled = false;
+        $("#practiceError").textContent = `已保存，但刷新失败：${err.message}`;
       }
     };
   });
