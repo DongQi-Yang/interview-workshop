@@ -27,14 +27,29 @@ export class AppleFMProvider implements AIProvider {
       const child = spawn(this.bridgePath, args, { timeout });
       let out = "";
       let errOut = "";
+      let settled = false;
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        fn();
+      };
       child.stdout.on("data", (d) => (out += d));
       child.stderr.on("data", (d) => (errOut += d));
       child.on("error", (err) =>
-        reject(new ProviderError(`端侧桥启动失败: ${err.message}`, true)),
+        settle(() => reject(new ProviderError(`端侧桥启动失败: ${err.message}`, true))),
+      );
+      // 桥进程可能在消费 stdin 之前就已退出（如提前失败分支），此时向 child.stdin
+      // 写入会触发异步 EPIPE 'error' 事件；不监听会被 Node 当作未捕获异常抛出，
+      // 直接崩掉整个进程。这里显式捕获并路由进同一个 reject 路径，映射为可重试
+      // ProviderError，保证外部依赖故障只影响单次请求，不影响进程存活。
+      child.stdin.on("error", (err) =>
+        settle(() => reject(new ProviderError(`端侧桥 stdin 写入失败: ${err.message}`, true))),
       );
       child.on("close", (code) => {
-        if (code === 0) resolve(out.replace(/\n$/, ""));
-        else reject(new ProviderError(`端侧桥退出码 ${code}: ${errOut.trim()}`, true));
+        settle(() => {
+          if (code === 0) resolve(out.replace(/\n$/, ""));
+          else reject(new ProviderError(`端侧桥退出码 ${code}: ${errOut.trim()}`, true));
+        });
       });
       if (stdin) child.stdin.write(stdin);
       child.stdin.end();

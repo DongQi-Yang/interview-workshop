@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { AppleFMProvider } from "../src/ai/appleFMProvider.js";
 
 const FAKE = "test/fixtures/fake-bridge.sh";
+const EXIT_FAST = "test/fixtures/exit-fast.sh";
 
 describe("AppleFMProvider", () => {
   it("经桥进程返回 stdout 文本", async () => {
@@ -21,5 +22,13 @@ describe("AppleFMProvider", () => {
     await expect(p.complete({ system: "s", user: "u" })).rejects.toMatchObject({
       name: "ProviderError",
     });
+  });
+
+  it("桥进程在读取 stdin 前提前退出（大 payload 触发 EPIPE）时，reject 为可重试 ProviderError 而不是使进程崩溃", async () => {
+    const p = new AppleFMProvider(EXIT_FAST);
+    const bigPayload = "x".repeat(5 * 1024 * 1024);
+    await expect(
+      p.complete({ system: "s", user: bigPayload }),
+    ).rejects.toMatchObject({ name: "ProviderError", retryable: true });
   });
 });
